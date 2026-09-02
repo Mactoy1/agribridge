@@ -7,41 +7,91 @@ export const EmailConfirmationPage: React.FC = () => {
   const [message, setMessage] = useState('Verifying your email...');
 
   useEffect(() => {
+    let mounted = true;
+
     const verifyEmail = async () => {
-      const params = new URLSearchParams(window.location.search);
+      try {
+        // Check if Supabase has created a session from
+        // the email confirmation link.
+        const { data, error } = await supabase.auth.getSession();
 
-      const tokenHash = params.get('token_hash');
-      const type = params.get('type');
+        if (!mounted) return;
 
-      if (!tokenHash) {
-        setStatus('error');
-        setMessage('Verification link is missing or invalid.');
-        return;
+        if (error) {
+          console.error('Email verification error:', error);
+          setStatus('error');
+          setMessage(error.message);
+          return;
+        }
+
+        if (data.session) {
+          setStatus('success');
+
+          // Remove authentication information from the URL
+          window.history.replaceState(
+            {},
+            document.title,
+            '/auth/confirm'
+          );
+
+          return;
+        }
+
+        // Listen for the authentication session created
+        // while Supabase processes the confirmation URL.
+        const {
+          data: { subscription },
+        } = supabase.auth.onAuthStateChange((event, session) => {
+          if (!mounted) return;
+
+          if (
+            (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') &&
+            session
+          ) {
+            setStatus('success');
+
+            window.history.replaceState(
+              {},
+              document.title,
+              '/auth/confirm'
+            );
+          }
+        });
+
+        // Give Supabase a little time to process the URL.
+        setTimeout(async () => {
+          if (!mounted) return;
+
+          const { data: sessionData } = await supabase.auth.getSession();
+
+          if (!sessionData.session) {
+            setStatus('error');
+            setMessage(
+              'This verification link is invalid or has expired. Please request a new verification email.'
+            );
+          }
+        }, 2000);
+
+        return () => {
+          subscription.unsubscribe();
+        };
+      } catch (err) {
+        console.error('Unexpected verification error:', err);
+
+        if (mounted) {
+          setStatus('error');
+          setMessage(
+            'Something went wrong while verifying your email. Please try again.'
+          );
+        }
       }
-
-      const { error } = await supabase.auth.verifyOtp({
-        token_hash: tokenHash,
-        type: (type as 'email' | 'recovery' | 'invite' | 'email_change') || 'email',
-      });
-
-      if (error) {
-        console.error('Email verification error:', error);
-        setStatus('error');
-        setMessage(error.message);
-        return;
-      }
-
-      setStatus('success');
-
-      // Remove the token from the browser URL
-      window.history.replaceState(
-        {},
-        document.title,
-        '/auth/confirm'
-      );
     };
 
     verifyEmail();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   const handleContinue = () => {
