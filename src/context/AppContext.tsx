@@ -419,6 +419,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         email: cleanEmail,
         password,
         options: {
+           emailRedirectTo: `${window.location.origin}/auth/confirm`,
           data: {
             name: cleanName,
             role,

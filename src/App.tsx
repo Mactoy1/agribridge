@@ -1,3 +1,4 @@
+import { EmailConfirmationPage } from './pages/EmailConfirmationPage';
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
@@ -92,6 +93,7 @@ export function AppContent() {
           <Route path="/dashboard/buyer" element={<BuyerDashboardPage />} />
           <Route path="/dashboard/logistics" element={<LogisticsPage />} />
           <Route path="/dashboard/ai" element={<AIDashboardPage />} />
+          <Route path="/auth/confirm" element={<EmailConfirmationPage />} />
           
           {/* Catch-all fallback */}
           <Route path="*" element={<LandingPage />} />
