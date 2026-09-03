@@ -12,8 +12,10 @@ interface Toast {
 
 interface AppContextType {
   products: Product[];
+  addProduct: (product: Product) => void;
   cart: CartItem[];
   wishlist: string[];
+  addProduct: (product: Product) => void;
   compareItems: Product[];
   quickViewProduct: Product | null;
   isCartOpen: boolean;
@@ -72,7 +74,47 @@ logoutUser: () => Promise<void>;
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [products] = useState<Product[]>(mockProducts);
+  const [products, setProducts] = useState<Product[]>(() => {
+  try {
+    const saved = localStorage.getItem('agribridge_custom_products');
+
+    if (saved) {
+      const customProducts = JSON.parse(saved) as Product[];
+
+      return [
+        ...customProducts,
+        ...mockProducts.filter(
+          mp => !customProducts.some(cp => cp.id === mp.id)
+        )
+      ];
+    }
+  } catch (error) {
+    console.error('Failed to load saved AgriBridge listings:', error);
+  }
+
+  return mockProducts;
+});
+const addProduct = (product: Product) => {
+  setProducts(prev => {
+    const withoutDuplicate = prev.filter(p => p.id !== product.id);
+    return [product, ...withoutDuplicate];
+  });
+};
+useEffect(() => {
+  try {
+    const customProducts = products.filter(
+      product => product.id.startsWith('p-')
+    );
+
+    localStorage.setItem(
+      'agribridge_custom_products',
+      JSON.stringify(customProducts)
+    );
+  } catch (error) {
+    console.error('Failed to save AgriBridge listings:', error);
+  }
+}, [products]);
+
   
   // Cart state
   const [cart, setCart] = useState<CartItem[]>([
@@ -580,6 +622,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         products,
         cart,
         wishlist,
+        addProduct,
         compareItems,
         quickViewProduct,
         isCartOpen,
