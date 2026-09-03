@@ -13,7 +13,9 @@ import {
   Sparkles, 
   X, 
   DollarSign, 
-  Layers 
+  Layers,
+  Upload,
+  Image as ImageIcon
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { Product } from '../types';
@@ -30,7 +32,8 @@ export const FarmerDashboardPage: React.FC = () => {
   const [newQuantity, setNewQuantity] = useState<number>(5);
   const [newPrice, setNewPrice] = useState<number>(32);
   const [newLocation, setNewLocation] = useState('Nashik, Maharashtra');
-  const [newOrganic, setNewOrganic] = useState(false);
+  const [newOrganic, setNewOrganic] = useState(false);const [newImage, setNewImage] = useState('');
+const [imagePreview, setImagePreview] = useState('');
 
   const handleCreateListing = (e: React.FormEvent) => {
     e.preventDefault();
@@ -40,9 +43,11 @@ export const FarmerDashboardPage: React.FC = () => {
       id: `p-${Date.now()}`,
       name: newCropName,
       category: newCategory,
-      image: newCategory === 'Fruits' 
-        ? 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=600&q=80'
-        : 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80',
+      image: newImage || (
+  newCategory === 'Fruits'
+    ? 'https://images.unsplash.com/photo-1553279768-865429fa0078?auto=format&fit=crop&w=600&q=80'
+    : 'https://images.unsplash.com/photo-1592924357228-91a4daadcfea?auto=format&fit=crop&w=600&q=80'
+),
       farmerName: 'Ramesh Patil',
       fpoName: 'Sahyadri Farmers Producer Co.',
       location: newLocation.split(',')[0] || 'Nashik',
@@ -97,6 +102,8 @@ export const FarmerDashboardPage: React.FC = () => {
     addProduct(newProduct);
     setIsListingModalOpen(false);
     setNewCropName('');
+    setNewImage('');
+    setImagePreview('');
     showToast('Produce Listed Successfully', `${newCropName} is now live on the marketplace.`, 'success');
   };
 
@@ -391,6 +398,90 @@ export const FarmerDashboardPage: React.FC = () => {
                   className="w-full px-3.5 py-2.5 bg-[#F8FAF5] border border-gray-200 rounded-xl font-medium focus:outline-none focus:border-[#16A34A]"
                 />
               </div>
+              {/* Crop Image Upload */}
+<div>
+  <label className="font-bold text-gray-700 block mb-1">
+    Crop Image
+  </label>
+
+  <label className="relative flex min-h-32 cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-emerald-200 bg-emerald-50/50 transition hover:border-[#16A34A] hover:bg-emerald-50">
+
+    {imagePreview ? (
+      <>
+        <img
+          src={imagePreview}
+          alt="Crop preview"
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+
+        <div className="absolute inset-0 flex items-end bg-gradient-to-t from-black/60 to-transparent p-3">
+          <span className="text-[10px] font-bold text-white">
+            Click to change image
+          </span>
+        </div>
+      </>
+    ) : (
+      <div className="flex flex-col items-center gap-2 text-center">
+
+        <div className="rounded-xl bg-white p-2.5 shadow-sm">
+          <ImageIcon className="h-5 w-5 text-[#16A34A]" />
+        </div>
+
+        <div>
+          <p className="font-extrabold text-[#14532D]">
+            Add crop image
+          </p>
+
+          <p className="mt-0.5 text-[10px] text-gray-500">
+            JPG, PNG or WEBP • Max 5 MB
+          </p>
+        </div>
+
+        <span className="inline-flex items-center gap-1 rounded-lg bg-[#14532D] px-3 py-1.5 text-[10px] font-bold text-white">
+          <Upload className="h-3.5 w-3.5" />
+          Choose Image
+        </span>
+
+      </div>
+    )}
+
+    <input
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      className="sr-only"
+      onChange={(e) => {
+
+        const file = e.target.files?.[0];
+
+        if (!file) return;
+
+        // 5 MB limit
+        if (file.size > 5 * 1024 * 1024) {
+          showToast(
+            'Image Too Large',
+            'Please choose an image smaller than 5 MB.',
+            'error'
+          );
+
+          e.currentTarget.value = '';
+          return;
+        }
+
+        const reader = new FileReader();
+
+        reader.onload = () => {
+          const result = reader.result as string;
+
+          setNewImage(result);
+          setImagePreview(result);
+        };
+
+        reader.readAsDataURL(file);
+      }}
+    />
+
+  </label>
+</div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
