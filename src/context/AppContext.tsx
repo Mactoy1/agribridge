@@ -12,10 +12,9 @@ interface Toast {
 
 interface AppContextType {
   products: Product[];
-  addProduct: (product: Product) => void;
+  addProduct: (product: Product) => Promise<void>;
   cart: CartItem[];
   wishlist: string[];
-  addProduct: (product: Product) => void;
   compareItems: Product[];
   quickViewProduct: Product | null;
   isCartOpen: boolean;
@@ -94,12 +93,162 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   return mockProducts;
 });
-const addProduct = (product: Product) => {
-  setProducts(prev => {
-    const withoutDuplicate = prev.filter(p => p.id !== product.id);
-    return [product, ...withoutDuplicate];
-  });
+// Load farmer listings from Supabase
+useEffect(() => {
+  const loadDatabaseProducts = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('agri_products')
+        .select('product_data, created_at')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Failed to load Supabase products:', error);
+        return;
+      }
+      useEffect(() => {
+  const migrateOldListingsToSupabase = async () => {
+    try {
+      const saved = localStorage.getItem('agribridge_custom_products');
+
+      if (!saved) {
+        return;
+      }
+
+      const oldProducts = JSON.parse(saved) as Product[];
+
+      if (!oldProducts.length) {
+        return;
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        console.log('No logged-in user. Skipping listing migration.');
+        return;
+      }
+
+      const productsToMigrate = oldProducts.filter(
+        product => product.id.startsWith('p-')
+      );
+
+      if (!productsToMigrate.length) {
+        return;
+      }
+
+      const rows = productsToMigrate.map(product => ({
+        id: product.id,
+        product_data: product,
+        farmer_id: user.id,
+        name: product.name,
+        category: product.category,
+        location: product.location,
+        price_per_kg: product.pricePerKg,
+        available_quantity_tons: product.availableQuantityTons,
+      }));
+
+      const { error } = await supabase
+        .from('agri_products')
+        .upsert(rows, {
+          onConflict: 'id',
+        });
+
+      if (error) {
+        console.error(
+          'Failed to migrate old listings:',
+          error
+        );
+        return;
+      }
+
+      console.log(
+        `Successfully migrated ${productsToMigrate.length} old listings to Supabase.`
+      );
+    } catch (error) {
+      console.error(
+        'Old listing migration failed:',
+        error
+      );
+    }
+  };
+
+  migrateOldListingsToSupabase();
+}, []);
+
+      const databaseProducts = (data ?? [])
+        .map(row => row.product_data as Product)
+        .filter(Boolean);
+
+      if (databaseProducts.length === 0) {
+        return;
+      }
+
+      setProducts(prev => {
+        const databaseIds = new Set(
+          databaseProducts.map(product => product.id)
+        );
+
+        const remainingProducts = prev.filter(
+          product => !databaseIds.has(product.id)
+        );
+
+        return [...databaseProducts, ...remainingProducts];
+      });
+    } catch (error) {
+      console.error('Failed to load database products:', error);
+    }
+  };
+
+  loadDatabaseProducts();
+}, []);
+const addProduct = async (product: Product): Promise<void> => {
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      throw new Error('Please log in before listing produce.');
+    }
+
+    const { error } = await supabase
+      .from('agri_products')
+      .upsert(
+        {
+          id: product.id,
+          product_data: product,
+          farmer_id: user.id,
+          name: product.name,
+          category: product.category,
+          location: product.location,
+          price_per_kg: product.pricePerKg,
+          available_quantity_tons: product.availableQuantityTons,
+        },
+        {
+          onConflict: 'id',
+        }
+      );
+
+    if (error) {
+      console.error('Supabase listing save error:', error);
+      throw error;
+    }
+
+    setProducts(prev => {
+      const withoutDuplicate = prev.filter(
+        p => p.id !== product.id
+      );
+
+      return [product, ...withoutDuplicate];
+    });
+  } catch (error) {
+    console.error('Failed to publish product:', error);
+    throw error;
+  }
 };
+
 useEffect(() => {
   try {
     const customProducts = products.filter(

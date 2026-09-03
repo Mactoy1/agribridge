@@ -460,7 +460,7 @@ const [imagePreview, setImagePreview] = useState('');
           showToast(
             'Image Too Large',
             'Please choose an image smaller than 5 MB.',
-            'error'
+            'warning'
           );
 
           e.currentTarget.value = '';
